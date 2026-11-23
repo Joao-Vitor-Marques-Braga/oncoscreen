@@ -168,18 +168,15 @@ class OllamaSLMClient(SLMEngine):
             )
 
         return (
-            f"## 1. Síntese Diagnóstica\n"
-            f"Triagem multimodal realizada para **{patient_name}**. A rede neural convolucional (`EfficientNet-B0`) "
-            f"estimou probabilidade visual de **{cnn_probability:.1%}** (limiar calibrado em **{threshold:.0%}**), "
-            f"com foco de ativação Grad-CAM em **{quadrant.value}**.\n\n"
-            f"## 2. Análise Comparativa Imagem vs. Contexto\n"
-            f"**Parecer do Guardrail:** {guardrail.alert_title}\n\n"
+            f"## 1. Síntese Clínica\n"
+            f"Avaliação clínica intraoral realizada para **{patient_name}**, com foco principal observado em "
+            f"**{quadrant.value}** e estratificação de risco consolidada como **{guardrail.final_risk.value}**.\n\n"
+            f"## 2. Correlação dos Achados\n"
             f"{guardrail.alert_description}\n\n"
             f"**Fatores e achados registrados na anamnese ({guardrail.clinical_score} pts):**\n"
             f"{factors_md}\n\n"
             f"**Observações clínicas:** {notes}\n\n"
             f"## 3. Estratificação de Risco\n"
-            f"- **Risco Visual (CNN):** {'Positivo' if guardrail.cnn_positive else 'Negativo'} ({cnn_probability:.1%})\n"
             f"- **Risco Clínico Contextual:** {guardrail.clinical_risk.value}\n"
             f"- **Classificação Final Consolidada:** **{guardrail.final_risk.value}**\n\n"
             f"## 4. Conduta Recomendada\n"
