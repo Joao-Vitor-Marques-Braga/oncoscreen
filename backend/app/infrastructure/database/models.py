@@ -69,7 +69,6 @@ class ExamModel(Base):
     original_image_path: Mapped[str] = mapped_column(String(255), nullable=False)
     gradcam_heatmap_path: Mapped[str] = mapped_column(String(255), nullable=False)
     gradcam_overlay_path: Mapped[str] = mapped_column(String(255), nullable=False)
-    pdf_report_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     whatsapp_dispatched: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)

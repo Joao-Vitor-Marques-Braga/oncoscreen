@@ -9,7 +9,11 @@ from app.application.dtos import ExamDetailDTO
 from app.application.exceptions import AuthorizationError, NotFoundError
 from app.domain.entities.user import UserRole
 from app.domain.interfaces.documents import FileStorage
-from app.domain.interfaces.repositories import ExamRepository, PatientRepository
+from app.domain.interfaces.repositories import (
+    ExamRepository,
+    PatientRepository,
+    UserRepository,
+)
 
 
 class GetExamDetailUseCase:
@@ -19,10 +23,12 @@ class GetExamDetailUseCase:
         self,
         exam_repo: ExamRepository,
         patient_repo: PatientRepository,
+        user_repo: UserRepository,
         file_storage: FileStorage,
     ) -> None:
         self._exam_repo = exam_repo
         self._patient_repo = patient_repo
+        self._user_repo = user_repo
         self._storage = file_storage
 
     async def execute(
@@ -42,6 +48,9 @@ class GetExamDetailUseCase:
         if not patient:
             raise NotFoundError("Paciente associado ao exame não encontrado.")
 
+        doctor = await self._user_repo.get_by_id(exam.doctor_id)
+        doctor_name = doctor.full_name if doctor else "Médico Responsável"
+
         orig_b64 = self._read_b64(exam.original_image_path)
         heatmap_b64 = self._read_b64(exam.gradcam_heatmap_path)
         overlay_b64 = self._read_b64(exam.gradcam_overlay_path)
@@ -51,7 +60,9 @@ class GetExamDetailUseCase:
             patient_id=patient.id,
             patient_name=patient.full_name,
             patient_cpf_masked=patient.cpf.masked,
+            patient_birth_date=patient.birth_date,
             patient_phone=patient.phone_whatsapp,
+            doctor_name=doctor_name,
             cnn_probability=exam.cnn_probability,
             threshold_used=exam.threshold_used,
             anatomical_quadrant=exam.anatomical_quadrant.value,
@@ -72,4 +83,3 @@ class GetExamDetailUseCase:
         if path and self._storage.exists(path):
             return base64.b64encode(self._storage.read_bytes(path)).decode("ascii")
         return ""
-

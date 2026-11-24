@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { anamnesisSchema } from "@/features/triage/anamnesisSchema";
 import { patientLookupSchema } from "@/features/patients/PatientLookupCard";
+import { sanitizeClinicalText } from "@/shared/utils/generateClinicalPdf";
 
 describe("Zod Clinical Schemas", () => {
   it("validates structured anamnesis defaults and flags", () => {
@@ -31,6 +32,17 @@ describe("Zod Clinical Schemas", () => {
 
     const bad = patientLookupSchema.safeParse({ cpf: "12345" });
     expect(bad.success).toBe(false);
+  });
+
+  it("strips markdown fences, hashes, and broken bullets from SLM report text", () => {
+    const dirty = "```markdown\n\n### 1. Síntese Clínica\n\n•\nItem 1\n**Negrito**\n```";
+    const clean = sanitizeClinicalText(dirty);
+    expect(clean).not.toContain("```");
+    expect(clean).not.toContain("markdown");
+    expect(clean).not.toContain("###");
+    expect(clean).not.toContain("**");
+    expect(clean).toContain("1. Síntese Clínica");
+    expect(clean).toContain("- Item 1");
   });
 });
 

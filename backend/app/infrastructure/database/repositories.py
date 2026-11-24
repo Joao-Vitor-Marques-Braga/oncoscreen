@@ -136,7 +136,6 @@ class SQLAlchemyExamRepository(ExamRepository):
             original_image_path=exam.original_image_path,
             gradcam_heatmap_path=exam.gradcam_heatmap_path,
             gradcam_overlay_path=exam.gradcam_overlay_path,
-            pdf_report_path=exam.pdf_report_path,
             whatsapp_dispatched=exam.whatsapp_dispatched,
             created_at=exam.created_at,
         )
@@ -163,21 +162,10 @@ class SQLAlchemyExamRepository(ExamRepository):
         rows = (await self._session.execute(stmt)).scalars().all()
         return [self._to_entity(r) for r in rows]
 
-    async def update_pdf_and_whatsapp(
-        self,
-        exam_id: str,
-        pdf_path: Optional[str] = None,
-        whatsapp_dispatched: Optional[bool] = None,
-    ) -> None:
-        values: dict[str, object] = {}
-        if pdf_path is not None:
-            values["pdf_report_path"] = pdf_path
-        if whatsapp_dispatched is not None:
-            values["whatsapp_dispatched"] = whatsapp_dispatched
-        if values:
-            stmt = update(ExamModel).where(ExamModel.id == exam_id).values(**values)
-            await self._session.execute(stmt)
-            await self._session.commit()
+    async def mark_whatsapp_dispatched(self, exam_id: str) -> None:
+        stmt = update(ExamModel).where(ExamModel.id == exam_id).values(whatsapp_dispatched=True)
+        await self._session.execute(stmt)
+        await self._session.commit()
 
     @staticmethod
     def _to_entity(row: ExamModel) -> Exam:
@@ -211,7 +199,6 @@ class SQLAlchemyExamRepository(ExamRepository):
             original_image_path=row.original_image_path,
             gradcam_heatmap_path=row.gradcam_heatmap_path,
             gradcam_overlay_path=row.gradcam_overlay_path,
-            pdf_report_path=row.pdf_report_path,
             whatsapp_dispatched=row.whatsapp_dispatched,
             created_at=row.created_at,
         )

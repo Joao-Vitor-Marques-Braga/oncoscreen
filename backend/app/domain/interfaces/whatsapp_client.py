@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -16,7 +17,7 @@ class WhatsAppDispatchResult:
 
 
 class WhatsAppClient(ABC):
-    """Port for sending clinical reports and PDFs to patients via WhatsApp."""
+    """Port for sending clinical reports (and optional PDF from frontend) via WhatsApp."""
 
     @abstractmethod
     async def send_exam_report(
@@ -24,12 +25,11 @@ class WhatsAppClient(ABC):
         phone_number: str,
         patient_name: str,
         summary_text: str,
-        pdf_bytes: bytes,
-        pdf_filename: str,
+        pdf_base64: Optional[str] = None,
+        pdf_filename: Optional[str] = None,
     ) -> WhatsAppDispatchResult:
-        """Send summary message and PDF attachment via WhatsApp."""
+        """Send summary message and optional PDF attachment via WhatsApp."""
 
     @abstractmethod
     async def health_check(self) -> dict[str, object]:
         """Check WhatsApp gateway availability."""
-

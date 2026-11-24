@@ -51,6 +51,10 @@ class TriageResultDTO:
     patient_id: str
     patient_name: str
     patient_cpf_masked: str
+    patient_birth_date: date
+    patient_phone: str
+    doctor_name: str
+    anamnesis: Anamnesis
     cnn_probability: float
     threshold_used: float
     anatomical_quadrant: str
@@ -86,7 +90,9 @@ class ExamDetailDTO:
     patient_id: str
     patient_name: str
     patient_cpf_masked: str
+    patient_birth_date: date
     patient_phone: str
+    doctor_name: str
     cnn_probability: float
     threshold_used: float
     anatomical_quadrant: str

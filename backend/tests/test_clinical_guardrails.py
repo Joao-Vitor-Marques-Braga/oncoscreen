@@ -53,6 +53,24 @@ def test_critical_discordance_false_negative_guardrail_with_erythroplakia() -> N
     assert result.guardrail_triggered is True
 
 
+def test_visual_false_positive_discordance_when_anamnesis_zero() -> None:
+    service = ClinicalGuardrailsService()
+    anamnesis = Anamnesis()
+
+    result = service.evaluate(anamnesis=anamnesis, cnn_probability=0.78, threshold=0.50)
+
+    assert result.cnn_positive is True
+    assert result.clinical_score == 0
+    assert result.clinical_risk == RiskLevel.LOW
+    assert result.final_risk == RiskLevel.LOW
+    assert result.concordance_status == ConcordanceStatus.VISUAL_FALSE_POSITIVE
+    assert result.guardrail_triggered is True
+    assert (
+        result.alert_title
+        == "DISCORDÂNCIA (Falso-Positivo Visual: CNN > limiar, mas Anamnese = 0 pontos. Prevalece o baixo risco clínico)."
+    )
+
+
 def test_visual_alert_only_when_clinical_score_is_low() -> None:
     service = ClinicalGuardrailsService()
     anamnesis = Anamnesis(local_pain=True)

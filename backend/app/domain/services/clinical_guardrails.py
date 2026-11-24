@@ -86,7 +86,28 @@ class ClinicalGuardrailsService:
                 triggered_red_flags=red_flags,
             )
 
-        # Case 3: Visual Alert Only (CNN positive, Low/Moderate clinical score)
+        # Case 3: Visual False-Positive Discordance (CNN positive, but Anamnesis = 0 points)
+        if cnn_positive and clinical_score == 0:
+            return GuardrailAssessment(
+                clinical_score=0,
+                clinical_risk=RiskLevel.LOW,
+                cnn_positive=True,
+                final_risk=RiskLevel.LOW,
+                concordance_status=ConcordanceStatus.VISUAL_FALSE_POSITIVE,
+                guardrail_triggered=True,
+                alert_title=(
+                    "DISCORDÂNCIA (Falso-Positivo Visual: CNN > limiar, mas Anamnese = 0 pontos. "
+                    "Prevalece o baixo risco clínico)."
+                ),
+                alert_description=(
+                    f"A predição visual ({cnn_probability:.1%}) ficou acima do limiar ({threshold:.0%}), "
+                    "mas a anamnese registrou 0 pontos (baixo risco clínico). Possível falso-positivo visual "
+                    "(ex.: artefato de iluminação ou instrumento clínico); prevalece o baixo risco clínico."
+                ),
+                triggered_red_flags=red_flags,
+            )
+
+        # Case 4: Visual Alert Only (CNN positive, Low > 0 / Moderate clinical score)
         if cnn_positive:
             elevated = RiskLevel.HIGH if cnn_probability >= max(threshold, 0.75) else RiskLevel.MODERATE
             return GuardrailAssessment(

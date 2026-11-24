@@ -1,30 +1,12 @@
-"""Abstract PDF report generator and file storage contracts."""
+"""Abstract file storage contract for lightweight image persistence."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from app.domain.entities.exam import Exam
-from app.domain.entities.patient import Patient
-
-
-class PDFGenerator(ABC):
-    """Port for generating formal clinical PDF reports."""
-
-    @abstractmethod
-    def generate_exam_pdf(
-        self,
-        exam: Exam,
-        patient: Patient,
-        doctor_name: str,
-        original_image_bytes: bytes,
-        gradcam_overlay_bytes: bytes,
-    ) -> bytes:
-        """Render a clinical PDF document and return its bytes."""
-
 
 class FileStorage(ABC):
-    """Port for lightweight local file storage (images and PDFs)."""
+    """Port for lightweight local file storage (compressed images)."""
 
     @abstractmethod
     def save_bytes(self, relative_path: str, data: bytes) -> str:
@@ -37,4 +19,3 @@ class FileStorage(ABC):
     @abstractmethod
     def exists(self, relative_path: str) -> bool:
         """Check whether a stored file exists."""
-

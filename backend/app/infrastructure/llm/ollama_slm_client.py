@@ -1,8 +1,9 @@
-"""Ollama Local SLM Client for structured clinical report generation."""
+"""Ollama Local SLM Client for clean, natural clinical report generation."""
 
 from __future__ import annotations
 
 import logging
+import re
 
 import httpx
 
@@ -15,8 +16,42 @@ from app.domain.value_objects.risk_level import RiskLevel
 logger = logging.getLogger(__name__)
 
 
+def sanitize_report_text(raw_text: str) -> str:
+    """Remove markdown code fences, raw heading hashes, and broken bullet artifacts."""
+    text = raw_text.strip()
+
+    # Strip wrapping ```markdown ... ``` or ``` ... ``` fences
+    text = re.sub(r"^```[a-zA-Z0-9_-]*\s*\n?", "", text)
+    text = re.sub(r"\n?```\s*$", "", text)
+    text = re.sub(r"```[a-zA-Z0-9_-]*", "", text)
+
+    # Collapse orphaned bullet lines like "•\nTexto" into "- Texto"
+    text = re.sub(r"(?m)^\s*[•●▪]\s*\n+\s*", "- ", text)
+    text = re.sub(r"(?m)^\s*[•●▪*]\s+", "- ", text)
+
+    cleaned_lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            cleaned_lines.append("")
+            continue
+        # Remove backticks and normalize any level of markdown heading (###, ####, #) to clean numbered heading
+        stripped = stripped.replace("`", "")
+        if re.match(r"^#{1,6}\s+", stripped):
+            heading = re.sub(r"^#{1,6}\s+", "", stripped).strip()
+            heading = heading.replace("**", "")
+            cleaned_lines.append(heading)
+        else:
+            cleaned_lines.append(stripped.replace("**", ""))
+
+    result = "\n".join(cleaned_lines)
+    # Collapse 3+ consecutive newlines
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    return result.strip()
+
+
 class OllamaSLMClient(SLMEngine):
-    """Async HTTPX client for local Ollama inference (oncoscreen-qwen / qwen2.5:3b)."""
+    """Async HTTPX client for local Ollama inference (oncoscreen / qwen2.5:3b)."""
 
     def __init__(self, base_url: str, model: str, timeout_seconds: int = 60) -> None:
         self._base_url = base_url.rstrip("/")
@@ -51,7 +86,7 @@ class OllamaSLMClient(SLMEngine):
                         "stream": False,
                         "options": {
                             "temperature": 0.2,
-                            "num_predict": 700,
+                            "num_predict": 650,
                         },
                     },
                 )
@@ -60,23 +95,21 @@ class OllamaSLMClient(SLMEngine):
                 text = (payload.get("response") or "").strip()
                 if text:
                     return ClinicalReport(
-                        markdown_body=text,
+                        markdown_body=sanitize_report_text(text),
                         model_used=self._model,
                         generated_via_fallback=False,
                     )
         except Exception as exc:
             logger.warning("Ollama unavailable (%s). Using deterministic clinical fallback.", exc)
 
-        fallback_md = self._build_deterministic_fallback(
+        fallback_text = self._build_deterministic_fallback(
             patient_name=patient_name,
-            cnn_probability=cnn_probability,
-            threshold=threshold,
             quadrant=quadrant,
             anamnesis=anamnesis,
             guardrail=guardrail,
         )
         return ClinicalReport(
-            markdown_body=fallback_md,
+            markdown_body=sanitize_report_text(fallback_text),
             model_used=f"{self._model} (fallback clínico)",
             generated_via_fallback=True,
         )
@@ -116,70 +149,71 @@ class OllamaSLMClient(SLMEngine):
         notes = anamnesis.clinical_notes.strip() or "Sem observações adicionais."
 
         return (
-            "Você é um assistente médico especialista em Estomatologia e Oncologia de Cabeça e Pescoço (HNSCC). "
-            "Redija um laudo técnico de triagem em Português (Brasil), em formato Markdown objetivo e científico, "
-            "contendo EXATAMENTE as 4 seções: "
-            "'## 1. Síntese Diagnóstica', '## 2. Análise Comparativa Imagem vs. Contexto', "
-            "'## 3. Estratificação de Risco' e '## 4. Conduta Recomendada'.\n\n"
-            f"Dados do Caso:\n"
+            "Você é um médico especialista em Estomatologia e Cirurgia de Cabeça e Pescoço. "
+            "Redija um relatório clínico formal em Português (Brasil) para constar no prontuário do paciente.\n"
+            "REGRAS OBRIGATÓRIAS DE FORMATAÇÃO E CONTEÚDO:\n"
+            "- Escreva em texto limpo, SEM blocos de código, SEM ```markdown, SEM símbolos #, SEM asteriscos ** e SEM crases.\n"
+            "- NÃO mencione palavras de inteligência artificial (não escreva 'CNN', 'Grad-CAM', 'Guardrail', 'SLM', 'modelo' ou 'algoritmo').\n"
+            "- Mantenha o foco exclusivamente em Estomatologia / Cavidade Oral e Cabeça e Pescoço (não invente especialidades não relacionadas como oftalmologia ou siglas incorretas).\n"
+            "- Quando o status comparativo indicar falso-positivo visual (anamnese com 0 pontos), explique explicitamente que o achado fotográfico isolado pode corresponder a artefato de iluminação ou instrumento clínico, descartado pela anamnese de baixo risco, prevalecendo o baixo risco clínico.\n"
+            "- Use exatamente estas 4 seções em texto simples:\n"
+            "1. Síntese Clínica\n"
+            "2. Correlação dos Achados\n"
+            "3. Estratificação de Risco\n"
+            "4. Conduta Recomendada\n\n"
+            f"Dados do Atendimento:\n"
             f"- Paciente: {patient_name}\n"
-            f"- Probabilidade CNN (EfficientNet-B0): {cnn_probability:.1%} (Limiar de corte: {threshold:.0%})\n"
-            f"- Localização Grad-CAM predominante: {quadrant.value}\n"
-            f"- Escore Clínico da Anamnese: {guardrail.clinical_score} pontos (Risco Clínico: {guardrail.clinical_risk.value})\n"
-            f"- Status Comparativo: {guardrail.concordance_status.value} — {guardrail.alert_title}\n"
-            f"- Risco Final Consolidado (Guardrail): {guardrail.final_risk.value}\n"
-            f"- Fatores/Achados Marcados: {factors_str}\n"
-            f"- Observações do Médico: {notes}\n\n"
-            "Importante: Se o Guardrail tiver sinalizado discordância crítica (risco de falso-negativo), "
-            "destaque explicitamente que a clínica é soberana sobre a visão computacional."
+            f"- Índice de suspeita da avaliação fotográfica: {cnn_probability:.1%} (referência: {threshold:.0%})\n"
+            f"- Região anatômica avaliada: {quadrant.value}\n"
+            f"- Pontuação de anamnese: {guardrail.clinical_score} pontos (Risco clínico: {guardrail.clinical_risk.value})\n"
+            f"- Status comparativo: {guardrail.alert_title}\n"
+            f"- Classificação final consolidada: {guardrail.final_risk.value}\n"
+            f"- Alerta clínico: {guardrail.alert_description}\n"
+            f"- Fatores e achados marcados: {factors_str}\n"
+            f"- Observações do médico: {notes}\n"
         )
 
     @staticmethod
     def _build_deterministic_fallback(
         patient_name: str,
-        cnn_probability: float,
-        threshold: float,
         quadrant: AnatomicalQuadrant,
         anamnesis: Anamnesis,
         guardrail: GuardrailAssessment,
     ) -> str:
         factors = anamnesis.selected_labels()
-        factors_md = "\n".join(f"- {item}" for item in factors) if factors else "- Nenhum fator marcado"
+        factors_lines = "\n".join(f"- {item}" for item in factors) if factors else "- Nenhum fator de risco ou sintoma relatado."
         notes = anamnesis.clinical_notes.strip() or "Sem observações adicionais registradas."
 
         if guardrail.final_risk in (RiskLevel.CRITICAL, RiskLevel.HIGH):
             conduct = (
-                "- Encaminhamento **prioritário** para Estomatologia / Cirurgia de Cabeça e Pescoço.\n"
-                "- Avaliar realização de **biópsia incisional** da região de maior atividade "
-                f"({quadrant.value}) com exame anatomopatológico.\n"
-                "- Orientar cessação imediata de tabagismo e etilismo, se aplicável."
+                "- Encaminhamento prioritário para avaliação especializada em Estomatologia / Cirurgia de Cabeça e Pescoço.\n"
+                f"- Avaliar realização de biópsia incisional na região de interesse ({quadrant.value}) para exame anatomopatológico.\n"
+                "- Orientar cessação imediata de tabagismo e etilismo, quando aplicável."
             )
         elif guardrail.final_risk == RiskLevel.MODERATE:
             conduct = (
-                "- Reavaliação clínica presencial em **7 a 14 dias** para verificar regressão ou persistência da lesão.\n"
-                "- Remover possíveis fatores traumáticos locais e solicitar registro fotográfico comparativo.\n"
-                "- Caso persista além de 14 dias (Regra SUS), encaminhar para biópsia."
+                "- Reavaliação clínica presencial em 7 a 14 dias para verificar regressão ou persistência da alteração observada.\n"
+                "- Remover possíveis fatores traumáticos locais e manter acompanhamento fotográfico comparativo.\n"
+                "- Caso a lesão persista além de 14 dias, encaminhar para avaliação especializada e biópsia."
             )
         else:
             conduct = (
-                "- Acompanhamento odontológico/clínico de rotina.\n"
-                "- Orientar o paciente a retornar imediatamente caso surjam ulcerações persistentes (> 14 dias), "
-                "sangramento ou endurecimento local."
+                "- Acompanhamento odontológico e estomatológico de rotina.\n"
+                "- Orientar o paciente a retornar prontamente caso surjam feridas que não cicatrizam em até 14 dias, "
+                "sangramento espontâneo ou endurecimento local."
             )
 
         return (
-            f"## 1. Síntese Clínica\n"
-            f"Avaliação clínica intraoral realizada para **{patient_name}**, com foco principal observado em "
-            f"**{quadrant.value}** e estratificação de risco consolidada como **{guardrail.final_risk.value}**.\n\n"
-            f"## 2. Correlação dos Achados\n"
-            f"{guardrail.alert_description}\n\n"
-            f"**Fatores e achados registrados na anamnese ({guardrail.clinical_score} pts):**\n"
-            f"{factors_md}\n\n"
-            f"**Observações clínicas:** {notes}\n\n"
-            f"## 3. Estratificação de Risco\n"
-            f"- **Risco Clínico Contextual:** {guardrail.clinical_risk.value}\n"
-            f"- **Classificação Final Consolidada:** **{guardrail.final_risk.value}**\n\n"
-            f"## 4. Conduta Recomendada\n"
+            f"1. Síntese Clínica\n"
+            f"Avaliação clínica intraoral realizada para {patient_name}, com foco principal observado em "
+            f"{quadrant.value} e estratificação de risco consolidada como {guardrail.final_risk.value}.\n\n"
+            f"2. Correlação dos Achados\n"
+            f"Fatores e achados registrados na anamnese ({guardrail.clinical_score} pontos):\n"
+            f"{factors_lines}\n"
+            f"Observações clínicas: {notes}\n\n"
+            f"3. Estratificação de Risco\n"
+            f"- Risco Clínico Contextual: {guardrail.clinical_risk.value}\n"
+            f"- Classificação Final Consolidada: {guardrail.final_risk.value}\n\n"
+            f"4. Conduta Recomendada\n"
             f"{conduct}\n"
         )
-

@@ -1,7 +1,7 @@
 """Triage and Exam Pydantic v2 schemas."""
 
-from datetime import datetime
-from typing import List
+from datetime import date, datetime
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -45,6 +45,10 @@ class TriageResultResponse(BaseModel):
     patient_id: str
     patient_name: str
     patient_cpf_masked: str
+    patient_birth_date: date
+    patient_phone: str
+    doctor_name: str
+    anamnesis: AnamnesisSchema
     cnn_probability: float
     threshold_used: float
     anatomical_quadrant: str
@@ -78,7 +82,9 @@ class ExamDetailResponse(BaseModel):
     patient_id: str
     patient_name: str
     patient_cpf_masked: str
+    patient_birth_date: date
     patient_phone: str
+    doctor_name: str
     cnn_probability: float
     threshold_used: float
     anatomical_quadrant: str
@@ -95,8 +101,11 @@ class ExamDetailResponse(BaseModel):
     created_at: datetime
 
 
+class WhatsAppDispatchRequest(BaseModel):
+    pdf_base64: Optional[str] = None
+
+
 class WhatsAppDispatchResponse(BaseModel):
     sent: bool
     fallback_used: bool
     message: str
-

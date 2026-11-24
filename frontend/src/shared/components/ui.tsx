@@ -1,4 +1,5 @@
 import React from "react";
+import { sanitizeClinicalText } from "@/shared/utils/generateClinicalPdf";
 
 export const Card: React.FC<{
   children: React.ReactNode;
@@ -79,19 +80,20 @@ export const RiskBadge: React.FC<{ risk: string }> = ({ risk }) => {
 };
 
 export const MarkdownReportView: React.FC<{ markdown: string }> = ({ markdown }) => {
-  const lines = markdown.split("\n");
+  const cleaned = sanitizeClinicalText(markdown);
+  const lines = cleaned.split("\n");
   return (
     <div className="space-y-2 text-sm text-[#0F172A] dark:text-[#E2E8F0] leading-relaxed">
       {lines.map((line, idx) => {
         const trimmed = line.trim();
         if (!trimmed) return <div key={idx} className="h-1" />;
-        if (trimmed.startsWith("## ")) {
+        if (/^\d+\.\s+/.test(trimmed)) {
           return (
             <h3
               key={idx}
               className="text-sm font-bold text-[#1E3A8A] dark:text-[#93C5FD] border-b border-[#E2E8F0] dark:border-[#334155] pb-1 pt-2"
             >
-              {trimmed.replace(/^##\s+/, "")}
+              {trimmed}
             </h3>
           );
         }
@@ -99,11 +101,11 @@ export const MarkdownReportView: React.FC<{ markdown: string }> = ({ markdown })
           return (
             <div key={idx} className="flex gap-2 pl-2">
               <span className="text-[#1E3A8A] dark:text-[#93C5FD] font-bold">•</span>
-              <span>{trimmed.slice(2).replace(/\*\*/g, "")}</span>
+              <span>{trimmed.slice(2)}</span>
             </div>
           );
         }
-        return <p key={idx}>{trimmed.replace(/\*\*/g, "")}</p>;
+        return <p key={idx}>{trimmed}</p>;
       })}
     </div>
   );

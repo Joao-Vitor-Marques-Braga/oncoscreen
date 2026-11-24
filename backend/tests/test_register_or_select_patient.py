@@ -68,9 +68,7 @@ class InMemoryExamRepo(ExamRepository):
     async def list_all(self, limit: int = 100) -> List[Exam]:
         return []
 
-    async def update_pdf_and_whatsapp(
-        self, exam_id: str, pdf_path: Optional[str] = None, whatsapp_dispatched: Optional[bool] = None
-    ) -> None:
+    async def mark_whatsapp_dispatched(self, exam_id: str) -> None:
         return None
 
 

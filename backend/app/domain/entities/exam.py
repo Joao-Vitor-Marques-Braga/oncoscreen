@@ -27,7 +27,6 @@ class Exam:
     original_image_path: str
     gradcam_heatmap_path: str
     gradcam_overlay_path: str
-    pdf_report_path: Optional[str] = None
     whatsapp_dispatched: bool = False
     id: str = field(default_factory=lambda: str(uuid4()))
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

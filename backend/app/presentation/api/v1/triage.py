@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
@@ -60,7 +61,6 @@ async def execute_triage(
         slm_engine=container.slm_engine,
         guardrails_service=container.guardrails_service,
         file_storage=container.file_storage,
-        pdf_generator=container.pdf_generator,
     )
 
     dto = await use_case.execute(
@@ -79,6 +79,10 @@ async def execute_triage(
         patient_id=dto.patient_id,
         patient_name=dto.patient_name,
         patient_cpf_masked=dto.patient_cpf_masked,
+        patient_birth_date=dto.patient_birth_date,
+        patient_phone=dto.patient_phone,
+        doctor_name=dto.doctor_name,
+        anamnesis=AnamnesisSchema(**asdict(dto.anamnesis)),
         cnn_probability=dto.cnn_probability,
         threshold_used=dto.threshold_used,
         anatomical_quadrant=dto.anatomical_quadrant,
@@ -102,4 +106,3 @@ async def execute_triage(
         inference_time_ms=dto.inference_time_ms,
         created_at=dto.created_at,
     )
-

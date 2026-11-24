@@ -26,6 +26,10 @@ import {
   type AnamnesisFormValues,
 } from "@/features/triage/anamnesisSchema";
 import { GradCAMViewer } from "@/features/triage/GradCAMViewer";
+import {
+  buildClinicalPdfBase64,
+  downloadClinicalPdf,
+} from "@/shared/utils/generateClinicalPdf";
 import type { PatientSummary, SystemStatus, TriageResult } from "@/shared/types/clinical";
 
 export const TriageWorkspace: React.FC = () => {
@@ -104,19 +108,25 @@ export const TriageWorkspace: React.FC = () => {
     }
   };
 
-  const handleDownloadPDF = async () => {
+  const buildPdfPayload = (res: TriageResult) => ({
+    examId: res.exam_id,
+    patientName: res.patient_name,
+    patientCpfMasked: res.patient_cpf_masked,
+    patientBirthDate: res.patient_birth_date,
+    patientPhone: res.patient_phone,
+    doctorName: res.doctor_name,
+    finalRisk: res.guardrail.final_risk,
+    anatomicalQuadrant: res.anatomical_quadrant,
+    anamnesis: res.anamnesis,
+    reportText: res.report_markdown,
+    originalImageBase64: res.original_image_base64,
+    gradcamOverlayBase64: res.gradcam_overlay_base64,
+    createdAt: res.created_at,
+  });
+
+  const handleDownloadPDF = () => {
     if (!result) return;
-    const resp = await apiClient.get(`/exams/${result.exam_id}/pdf`, {
-      responseType: "blob",
-    });
-    const url = window.URL.createObjectURL(new Blob([resp.data], { type: "application/pdf" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `laudo_oncoscreen_${result.exam_id.slice(0, 8)}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    downloadClinicalPdf(buildPdfPayload(result));
   };
 
   const handleDispatchWhatsApp = async () => {
@@ -124,8 +134,10 @@ export const TriageWorkspace: React.FC = () => {
     setSendingWhatsApp(true);
     setWhatsappFeedback(null);
     try {
+      const pdfBase64 = buildClinicalPdfBase64(buildPdfPayload(result));
       const resp = await apiClient.post<{ sent: boolean; message: string }>(
-        `/exams/${result.exam_id}/whatsapp`
+        `/exams/${result.exam_id}/whatsapp`,
+        { pdf_base64: pdfBase64 }
       );
       setWhatsappFeedback(resp.data.message);
     } catch {
@@ -292,7 +304,9 @@ export const TriageWorkspace: React.FC = () => {
             {/* Guardrail Comparative Alert Banner */}
             <div
               className={`p-4 rounded-md border flex items-start gap-3 ${
-                result.guardrail.guardrail_triggered
+                result.guardrail.concordance_status === "DISCORDANCIA_FALSO_POSITIVO"
+                  ? "bg-[#FFFBEB] dark:bg-[#451A03] border-[#FCD34D] dark:border-[#D97706] text-[#92400E] dark:text-[#FDE68A]"
+                  : result.guardrail.guardrail_triggered
                   ? "bg-[#FEF2F2] dark:bg-[#450A0A] border-[#FCA5A5] dark:border-[#DC2626] text-[#991B1B] dark:text-[#FECACA]"
                   : "bg-[#ECFDF5] dark:bg-[#064E3B] border-[#6EE7B7] dark:border-[#059669] text-[#065F46] dark:text-[#A7F3D0]"
               }`}

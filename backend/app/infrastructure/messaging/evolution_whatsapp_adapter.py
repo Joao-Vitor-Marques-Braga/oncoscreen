@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import base64
 import logging
 import re
+from typing import Optional
 
 import httpx
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class EvolutionWhatsAppAdapter(WhatsAppClient):
-    """Sends exam summaries and PDF reports via Evolution API REST endpoints."""
+    """Sends exam summaries (and optional frontend-generated PDF) via Evolution API."""
 
     def __init__(self, api_url: str, api_key: str, instance_name: str) -> None:
         self._api_url = api_url.rstrip("/")
@@ -26,34 +26,40 @@ class EvolutionWhatsAppAdapter(WhatsAppClient):
         phone_number: str,
         patient_name: str,
         summary_text: str,
-        pdf_bytes: bytes,
-        pdf_filename: str,
+        pdf_base64: Optional[str] = None,
+        pdf_filename: Optional[str] = None,
     ) -> WhatsAppDispatchResult:
         digits = re.sub(r"\D", "", phone_number or "")
         if len(digits) in (10, 11):
             digits = f"55{digits}"
 
-        if not self._api_key or not self._api_url:
+        if not self._api_key or not self._api_url or self._api_key == "your-evolution-api-key":
             return WhatsAppDispatchResult(
                 sent=False,
                 fallback_used=True,
                 message=(
                     "Evolution API não configurada no ambiente (.env). "
-                    "O laudo em PDF está pronto para download manual."
+                    "Você pode baixar o PDF diretamente pelo botão 'Baixar Laudo PDF'."
                 ),
             )
 
-        b64_pdf = base64.b64encode(pdf_bytes).decode("ascii")
-        endpoint = f"{self._api_url}/message/sendMedia/{self._instance}"
         headers = {"apikey": self._api_key, "Content-Type": "application/json"}
-        payload = {
-            "number": digits,
-            "mediatype": "document",
-            "mimetype": "application/pdf",
-            "caption": summary_text,
-            "media": b64_pdf,
-            "fileName": pdf_filename,
-        }
+        if pdf_base64:
+            endpoint = f"{self._api_url}/message/sendMedia/{self._instance}"
+            payload = {
+                "number": digits,
+                "mediatype": "document",
+                "mimetype": "application/pdf",
+                "caption": summary_text,
+                "media": pdf_base64,
+                "fileName": pdf_filename or "laudo_oncoscreen.pdf",
+            }
+        else:
+            endpoint = f"{self._api_url}/message/sendText/{self._instance}"
+            payload = {
+                "number": digits,
+                "text": summary_text,
+            }
 
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
@@ -71,12 +77,12 @@ class EvolutionWhatsAppAdapter(WhatsAppClient):
                 fallback_used=True,
                 message=(
                     "Gateway WhatsApp (Evolution API) indisponível no momento. "
-                    "O laudo PDF foi gerado e pode ser baixado diretamente."
+                    "Baixe o PDF diretamente pela interface."
                 ),
             )
 
     async def health_check(self) -> dict[str, object]:
-        if not self._api_key:
+        if not self._api_key or self._api_key == "your-evolution-api-key":
             return {
                 "configured": False,
                 "online": False,
@@ -102,4 +108,3 @@ class EvolutionWhatsAppAdapter(WhatsAppClient):
                 "instance": self._instance,
                 "error": str(exc),
             }
-

@@ -58,6 +58,10 @@ export interface TriageResult {
   patient_id: string;
   patient_name: string;
   patient_cpf_masked: string;
+  patient_birth_date: string;
+  patient_phone: string;
+  doctor_name: string;
+  anamnesis: AnamnesisData;
   cnn_probability: number;
   threshold_used: number;
   anatomical_quadrant: string;
@@ -91,7 +95,9 @@ export interface ExamDetail {
   patient_id: string;
   patient_name: string;
   patient_cpf_masked: string;
+  patient_birth_date: string;
   patient_phone: string;
+  doctor_name: string;
   cnn_probability: number;
   threshold_used: number;
   anatomical_quadrant: string;

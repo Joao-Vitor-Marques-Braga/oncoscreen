@@ -16,6 +16,10 @@ import {
   RiskBadge,
 } from "@/shared/components/ui";
 import { GradCAMViewer } from "@/features/triage/GradCAMViewer";
+import {
+  buildClinicalPdfBase64,
+  downloadClinicalPdf,
+} from "@/shared/utils/generateClinicalPdf";
 import type { ExamDetail, ExamListItem } from "@/shared/types/clinical";
 
 export const ExamHistoryPage: React.FC = () => {
@@ -41,26 +45,42 @@ export const ExamHistoryPage: React.FC = () => {
       (await apiClient.get<ExamDetail>(`/exams/${selectedExamId}`)).data,
   });
 
+  const buildDetailPdfPayload = (detail: ExamDetail) => ({
+    examId: detail.id,
+    patientName: detail.patient_name,
+    patientCpfMasked: detail.patient_cpf_masked,
+    patientBirthDate: detail.patient_birth_date,
+    patientPhone: detail.patient_phone,
+    doctorName: detail.doctor_name,
+    finalRisk: detail.guardrail.final_risk,
+    anatomicalQuadrant: detail.anatomical_quadrant,
+    anamnesis: detail.anamnesis,
+    reportText: detail.report_markdown,
+    originalImageBase64: detail.original_image_base64,
+    gradcamOverlayBase64: detail.gradcam_overlay_base64,
+    createdAt: detail.created_at,
+  });
+
   const handleDownloadPdf = async (examId: string) => {
-    const resp = await apiClient.get(`/exams/${examId}/pdf`, {
-      responseType: "blob",
-    });
-    const url = window.URL.createObjectURL(new Blob([resp.data], { type: "application/pdf" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `laudo_oncoscreen_${examId.slice(0, 8)}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    const detail =
+      examDetail && examDetail.id === examId
+        ? examDetail
+        : (await apiClient.get<ExamDetail>(`/exams/${examId}`)).data;
+    downloadClinicalPdf(buildDetailPdfPayload(detail));
   };
 
   const handleSendWhatsApp = async (examId: string) => {
     setSendingWa(true);
     setWaMessage(null);
     try {
+      const detail =
+        examDetail && examDetail.id === examId
+          ? examDetail
+          : (await apiClient.get<ExamDetail>(`/exams/${examId}`)).data;
+      const pdfBase64 = buildClinicalPdfBase64(buildDetailPdfPayload(detail));
       const resp = await apiClient.post<{ sent: boolean; message: string }>(
-        `/exams/${examId}/whatsapp`
+        `/exams/${examId}/whatsapp`,
+        { pdf_base64: pdfBase64 }
       );
       setWaMessage(resp.data.message);
       refetch();

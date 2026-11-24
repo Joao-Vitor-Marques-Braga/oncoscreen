@@ -10,7 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.domain.entities.user import UserRole
-from app.domain.interfaces.documents import FileStorage, PDFGenerator
+from app.domain.interfaces.documents import FileStorage
 from app.domain.interfaces.slm_engine import SLMEngine
 from app.domain.interfaces.vision_engine import VisionEngine
 from app.domain.interfaces.whatsapp_client import WhatsAppClient
@@ -22,7 +22,6 @@ from app.infrastructure.database.repositories import (
     SQLAlchemyUserRepository,
 )
 from app.infrastructure.database.session import create_engine_and_sessionmaker
-from app.infrastructure.documents.reportlab_pdf_generator import ReportLabPDFGenerator
 from app.infrastructure.llm.ollama_slm_client import OllamaSLMClient
 from app.infrastructure.messaging.evolution_whatsapp_adapter import EvolutionWhatsAppAdapter
 from app.infrastructure.ml.efficientnet_vision_engine import EfficientNetVisionEngine
@@ -59,7 +58,6 @@ class AppContainer:
             expire_minutes=settings.jwt_expire_minutes,
         )
         self.file_storage: FileStorage = LocalFileStorage(settings.storage_path)
-        self.pdf_generator: PDFGenerator = ReportLabPDFGenerator()
         self.guardrails_service = ClinicalGuardrailsService()
 
         self.vision_engine: VisionEngine = EfficientNetVisionEngine(

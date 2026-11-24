@@ -66,11 +66,6 @@ class ExamRepository(ABC):
         """List all exams ordered by most recent."""
 
     @abstractmethod
-    async def update_pdf_and_whatsapp(
-        self,
-        exam_id: str,
-        pdf_path: Optional[str] = None,
-        whatsapp_dispatched: Optional[bool] = None,
-    ) -> None:
-        """Update PDF storage path and/or WhatsApp dispatch status."""
+    async def mark_whatsapp_dispatched(self, exam_id: str) -> None:
+        """Mark exam as dispatched via WhatsApp."""
 

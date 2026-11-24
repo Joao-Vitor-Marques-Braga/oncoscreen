@@ -1,4 +1,4 @@
-"""Execute Multimodal Triage Use Case (Vision CNN + Guardrails + SLM + PDF)."""
+"""Execute Multimodal Triage Use Case (Vision CNN + Guardrails + SLM)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from uuid import uuid4
 from app.application.dtos import ExecuteTriageInputDTO, TriageResultDTO
 from app.application.exceptions import NotFoundError, ValidationError
 from app.domain.entities.exam import Exam
-from app.domain.interfaces.documents import FileStorage, PDFGenerator
+from app.domain.interfaces.documents import FileStorage
 from app.domain.interfaces.repositories import ExamRepository, PatientRepository
 from app.domain.interfaces.slm_engine import SLMEngine
 from app.domain.interfaces.vision_engine import VisionEngine
@@ -26,7 +26,6 @@ class ExecuteMultimodalTriageUseCase:
         slm_engine: SLMEngine,
         guardrails_service: ClinicalGuardrailsService,
         file_storage: FileStorage,
-        pdf_generator: PDFGenerator,
     ) -> None:
         self._patient_repo = patient_repo
         self._exam_repo = exam_repo
@@ -34,7 +33,6 @@ class ExecuteMultimodalTriageUseCase:
         self._slm_engine = slm_engine
         self._guardrails = guardrails_service
         self._storage = file_storage
-        self._pdf_generator = pdf_generator
 
     async def execute(self, data: ExecuteTriageInputDTO) -> TriageResultDTO:
         if not 0.10 <= data.threshold <= 0.90:
@@ -94,17 +92,6 @@ class ExecuteMultimodalTriageUseCase:
             gradcam_overlay_path=overlay_path,
         )
 
-        # 5. Generate PDF Report and store on disk
-        pdf_bytes = self._pdf_generator.generate_exam_pdf(
-            exam=exam,
-            patient=patient,
-            doctor_name=data.doctor_name,
-            original_image_bytes=vision_result.original_jpeg_bytes,
-            gradcam_overlay_bytes=vision_result.overlay_jpeg_bytes,
-        )
-        pdf_path = self._storage.save_bytes(f"exams/{exam_id}/laudo_oncoscreen.pdf", pdf_bytes)
-        exam.pdf_report_path = pdf_path
-
         saved_exam = await self._exam_repo.create(exam)
 
         return TriageResultDTO(
@@ -112,6 +99,10 @@ class ExecuteMultimodalTriageUseCase:
             patient_id=patient.id,
             patient_name=patient.full_name,
             patient_cpf_masked=patient.cpf.masked,
+            patient_birth_date=patient.birth_date,
+            patient_phone=patient.phone_whatsapp,
+            doctor_name=data.doctor_name,
+            anamnesis=saved_exam.anamnesis,
             cnn_probability=saved_exam.cnn_probability,
             threshold_used=saved_exam.threshold_used,
             anatomical_quadrant=saved_exam.anatomical_quadrant.value,
@@ -125,4 +116,3 @@ class ExecuteMultimodalTriageUseCase:
             inference_time_ms=vision_result.inference_time_ms,
             created_at=saved_exam.created_at,
         )
-

@@ -141,13 +141,38 @@ def test_end_to_end_doctor_triage_and_patient_rbac(client: TestClient) -> None:
     )
     assert forbidden_resp.status_code == 403
 
-    # 6. Patient can read own exams and download PDF
+    # 6. Patient can read own exams and exam detail (PDF is generated on frontend)
     exams_resp = client.get("/api/v1/exams", headers=pat_headers)
     assert exams_resp.status_code == 200
     assert len(exams_resp.json()) == 1
 
+    detail_resp = client.get(f"/api/v1/exams/{exam_id}", headers=pat_headers)
+    assert detail_resp.status_code == 200
+    detail_data = detail_resp.json()
+    assert detail_data["patient_birth_date"] == "1975-08-20"
+    assert detail_data["doctor_name"] != ""
+
+    # Confirm backend PDF endpoint no longer exists
     pdf_resp = client.get(f"/api/v1/exams/{exam_id}/pdf", headers=pat_headers)
-    assert pdf_resp.status_code == 200
-    assert pdf_resp.headers["content-type"] == "application/pdf"
-    assert pdf_resp.content.startswith(b"%PDF")
+    assert pdf_resp.status_code == 404
+
+
+def test_sanitize_report_text_strips_markdown_fences_and_hashes() -> None:
+    from app.infrastructure.llm.ollama_slm_client import sanitize_report_text
+
+    dirty = (
+        "```markdown\n\n"
+        "### 1. Síntese Clínica\n\n"
+        "Texto **em negrito** com `codigo`.\n"
+        "•\nItem quebrado\n"
+        "```"
+    )
+    cleaned = sanitize_report_text(dirty)
+    assert "```" not in cleaned
+    assert "markdown" not in cleaned
+    assert "###" not in cleaned
+    assert "**" not in cleaned
+    assert "`" not in cleaned
+    assert "1. Síntese Clínica" in cleaned
+    assert "- Item quebrado" in cleaned
 
