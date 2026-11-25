@@ -45,6 +45,27 @@ def sanitize_report_text(raw_text: str) -> str:
             cleaned_lines.append(stripped.replace("**", ""))
 
     result = "\n".join(cleaned_lines)
+    # Clinical safety guardrail: triage must never recommend surgery directly — only biopsy/stomatology
+    result = re.sub(
+        r"(?i)encaminhamento\s+para\s+cirurgia\s+de\s+cabe[çc]a\s+e\s+pesco[çc]o(?:\s+para\s+avalia[çc][ãa]o\s+cir[úu]rgica(?:\s+emergencial)?)?",
+        "encaminhamento para Estomatologia para realização de biópsia (exame anatomopatológico)",
+        result,
+    )
+    result = re.sub(
+        r"(?i)cirurgia\s+de\s+cabe[çc]a\s+e\s+pesco[çc]o",
+        "Estomatologia",
+        result,
+    )
+    result = re.sub(
+        r"(?i)avalia[çc][ãa]o\s+cir[úu]rgica(?:\s+emergencial|\s+de\s+urg[êe]ncia)?",
+        "realização de biópsia (exame anatomopatológico)",
+        result,
+    )
+    result = re.sub(
+        r"(?i)(?:procedimento|tratamento|interven[çc][ãa]o)\s+cir[úu]rgic[oa]",
+        "biópsia incisional (exame anatomopatológico)",
+        result,
+    )
     # Collapse 3+ consecutive newlines
     result = re.sub(r"\n{3,}", "\n\n", result)
     return result.strip()
@@ -149,12 +170,13 @@ class OllamaSLMClient(SLMEngine):
         notes = anamnesis.clinical_notes.strip() or "Sem observações adicionais."
 
         return (
-            "Você é um médico especialista em Estomatologia e Cirurgia de Cabeça e Pescoço. "
+            "Você é um médico especialista em Estomatologia focado em triagem precoce de lesões da cavidade oral. "
             "Redija um relatório clínico formal em Português (Brasil) para constar no prontuário do paciente.\n"
             "REGRAS OBRIGATÓRIAS DE FORMATAÇÃO E CONTEÚDO:\n"
             "- Escreva em texto limpo, SEM blocos de código, SEM ```markdown, SEM símbolos #, SEM asteriscos ** e SEM crases.\n"
             "- NÃO mencione palavras de inteligência artificial (não escreva 'CNN', 'Grad-CAM', 'Guardrail', 'SLM', 'modelo' ou 'algoritmo').\n"
-            "- Mantenha o foco exclusivamente em Estomatologia / Cavidade Oral e Cabeça e Pescoço (não invente especialidades não relacionadas como oftalmologia ou siglas incorretas).\n"
+            "- Mantenha o foco exclusivamente em Estomatologia / Odontologia (não invente especialidades não relacionadas como oftalmologia, siglas incorretas ou palavras inexistentes).\n"
+            "- NUNCA recomende cirurgia, avaliação cirúrgica ou encaminhamento cirúrgico. Em casos de risco ALTO ou CRÍTICO, a conduta deve indicar EXCLUSIVAMENTE encaminhamento para Estomatologia e realização de biópsia (exame anatomopatológico) para confirmação diagnóstica.\n"
             "- Quando o status comparativo indicar falso-positivo visual (anamnese com 0 pontos), explique explicitamente que o achado fotográfico isolado pode corresponder a artefato de iluminação ou instrumento clínico, descartado pela anamnese de baixo risco, prevalecendo o baixo risco clínico.\n"
             "- Use exatamente estas 4 seções em texto simples:\n"
             "1. Síntese Clínica\n"
@@ -186,8 +208,8 @@ class OllamaSLMClient(SLMEngine):
 
         if guardrail.final_risk in (RiskLevel.CRITICAL, RiskLevel.HIGH):
             conduct = (
-                "- Encaminhamento prioritário para avaliação especializada em Estomatologia / Cirurgia de Cabeça e Pescoço.\n"
-                f"- Avaliar realização de biópsia incisional na região de interesse ({quadrant.value}) para exame anatomopatológico.\n"
+                "- Encaminhamento prioritário para avaliação especializada em Estomatologia.\n"
+                f"- Indicação de biópsia incisional na região de interesse ({quadrant.value}) para exame anatomopatológico e confirmação diagnóstica.\n"
                 "- Orientar cessação imediata de tabagismo e etilismo, quando aplicável."
             )
         elif guardrail.final_risk == RiskLevel.MODERATE:

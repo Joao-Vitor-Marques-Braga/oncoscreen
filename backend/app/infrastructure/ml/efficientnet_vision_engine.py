@@ -1,4 +1,4 @@
-"""CPU-Optimized EfficientNet-B0 Vision Engine with real Grad-CAM localization."""
+"""CPU-Optimized Vision Engine (ConvNeXt-Tiny / EfficientNet-B0) with real Grad-CAM localization."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class EfficientNetVisionEngine(VisionEngine):
-    """EfficientNet-B0 + Grad-CAM engine tuned for CPU-first clinical inference."""
+    """Auto-detecting ConvNeXt-Tiny / EfficientNet-B0 + Grad-CAM engine tuned for CPU inference."""
 
     def __init__(self, weights_path: str, num_threads: int = 4) -> None:
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -32,6 +32,7 @@ class EfficientNetVisionEngine(VisionEngine):
 
         self._weights_path = Path(weights_path)
         self._weights_loaded = False
+        self._architecture = "EfficientNet-B0"
         self._model = self._build_and_load_model()
         self._model.eval()
 
@@ -47,11 +48,6 @@ class EfficientNetVisionEngine(VisionEngine):
         )
 
     def _build_and_load_model(self) -> nn.Module:
-        # Build EfficientNet-B0 without forcing internet download in offline environments
-        model = models.efficientnet_b0(weights=None)
-        in_features = model.classifier[1].in_features
-        model.classifier[1] = nn.Linear(in_features, 1)
-
         if self._weights_path.is_file():
             try:
                 checkpoint = torch.load(self._weights_path, map_location=self._device, weights_only=True)
@@ -60,35 +56,67 @@ class EfficientNetVisionEngine(VisionEngine):
                     if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint
                     else checkpoint
                 )
-                # Support OncoScreenNet wrapper ("backbone." prefix) and 1-logit / 2-logit checkpoints
+
                 if isinstance(state_dict, dict):
                     state_dict = {
                         (k[len("backbone."):] if k.startswith("backbone.") else k): v
                         for k, v in state_dict.items()
                     }
-                    head_weight = state_dict.get("classifier.1.weight")
-                    if head_weight is not None and head_weight.shape[0] == 2:
-                        model.classifier[1] = nn.Linear(in_features, 2)
-                missing, unexpected = model.load_state_dict(state_dict, strict=False)
-                if len(missing) == 0:
-                    self._weights_loaded = True
-                    logger.info("Loaded EfficientNet-B0 weights cleanly from %s", self._weights_path)
-                else:
-                    self._weights_loaded = len(missing) < 10
-                    logger.warning(
-                        "Loaded weights from %s with missing=%d, unexpected=%d",
-                        self._weights_path,
-                        len(missing),
-                        len(unexpected),
-                    )
-            except Exception as exc:
-                logger.warning("Failed to load weights from %s: %s. Using initialized model.", self._weights_path, exc)
-        else:
-            logger.info(
-                "Weights file not found at %s. Running with initialized EfficientNet-B0 architecture.",
-                self._weights_path,
-            )
 
+                    # Detect ConvNeXt-Tiny vs EfficientNet-B0 from checkpoint structure
+                    is_convnext = any("layer_scale" in k for k in state_dict.keys())
+                    if is_convnext:
+                        model = models.convnext_tiny(weights=None)
+                        in_features = model.classifier[2].in_features
+                        if "classifier.2.1.weight" in state_dict:
+                            out_dim = int(state_dict["classifier.2.1.weight"].shape[0])
+                            model.classifier[2] = nn.Sequential(
+                                nn.Dropout(p=0.4),
+                                nn.Linear(in_features, out_dim),
+                            )
+                        else:
+                            head_w = state_dict.get("classifier.2.weight")
+                            out_dim = int(head_w.shape[0]) if head_w is not None else 1
+                            model.classifier[2] = nn.Linear(in_features, out_dim)
+                        self._architecture = "ConvNeXt-Tiny"
+                    else:
+                        model = models.efficientnet_b0(weights=None)
+                        in_features = model.classifier[1].in_features
+                        head_w = state_dict.get("classifier.1.weight")
+                        out_dim = int(head_w.shape[0]) if head_w is not None else 1
+                        model.classifier[1] = nn.Linear(in_features, out_dim)
+                        self._architecture = "EfficientNet-B0"
+
+                    missing, unexpected = model.load_state_dict(state_dict, strict=False)
+                    if len(missing) == 0 and len(unexpected) == 0:
+                        self._weights_loaded = True
+                        logger.info(
+                            "Loaded %s weights cleanly from %s (0 missing, 0 unexpected)",
+                            self._architecture,
+                            self._weights_path,
+                        )
+                    else:
+                        self._weights_loaded = len(missing) < 10
+                        logger.warning(
+                            "Loaded %s weights from %s with missing=%d, unexpected=%d",
+                            self._architecture,
+                            self._weights_path,
+                            len(missing),
+                            len(unexpected),
+                        )
+                    return model.to(self._device)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to load weights from %s: %s. Falling back to initialized EfficientNet-B0.",
+                    self._weights_path,
+                    exc,
+                )
+
+        # Fallback: uninitialized EfficientNet-B0
+        model = models.efficientnet_b0(weights=None)
+        in_features = model.classifier[1].in_features
+        model.classifier[1] = nn.Linear(in_features, 1)
+        self._architecture = "EfficientNet-B0"
         return model.to(self._device)
 
     async def analyze(self, image_bytes: bytes) -> VisionAnalysisResult:
@@ -98,14 +126,12 @@ class EfficientNetVisionEngine(VisionEngine):
         start = time.perf_counter()
 
         pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        # Resize working display copy to max 640px for lightweight storage & fast rendering
         display_img = self._resize_for_display(pil_img, max_side=640)
         disp_w, disp_h = display_img.size
 
         input_tensor = self._preprocess(pil_img).unsqueeze(0).to(self._device)
         input_tensor.requires_grad_(True)
 
-        # Hook last convolutional block for Grad-CAM
         activations: Optional[torch.Tensor] = None
         gradients: Optional[torch.Tensor] = None
 
@@ -141,7 +167,6 @@ class EfficientNetVisionEngine(VisionEngine):
         cam = self._compute_gradcam(activations, gradients)
         quadrant = self._map_quadrant(cam)
 
-        # Render heatmap & overlay
         cam_resized = cv2.resize(cam, (disp_w, disp_h), interpolation=cv2.INTER_CUBIC)
         cam_uint8 = np.uint8(np.clip(cam_resized * 255.0, 0, 255))
         heatmap_bgr = cv2.applyColorMap(cam_uint8, cv2.COLORMAP_JET)
@@ -216,10 +241,9 @@ class EfficientNetVisionEngine(VisionEngine):
 
     def status(self) -> dict[str, object]:
         return {
-            "engine": "EfficientNet-B0 (PyTorch + Grad-CAM)",
+            "engine": f"{self._architecture} (PyTorch + Grad-CAM)",
             "device": str(self._device),
             "cpu_threads": torch.get_num_threads() if self._device.type == "cpu" else None,
             "weights_path": str(self._weights_path),
             "weights_loaded": self._weights_loaded,
         }
-

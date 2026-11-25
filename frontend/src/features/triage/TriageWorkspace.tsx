@@ -9,7 +9,6 @@ import {
   ImagePlus,
   MessageSquareShare,
   Play,
-  Sliders,
 } from "lucide-react";
 import { apiClient } from "@/shared/api/client";
 import {
@@ -155,14 +154,14 @@ export const TriageWorkspace: React.FC = () => {
       />
 
       <form onSubmit={handleSubmit(onExecuteTriage)} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Image Upload + Threshold */}
+        {/* Left Column: Image Upload */}
         <div className="lg:col-span-5 space-y-6">
           <Card>
             <CardHeader
-              title="2. Fotografia Intraoral e Sensibilidade"
-              subtitle="Imagem analisada pela EfficientNet-B0 com mapa de ativação Grad-CAM."
+              title="2. Fotografia Intraoral"
+              subtitle="Selecione a imagem clínica da lesão para análise visual e mapeamento Grad-CAM."
             />
-            <div className="p-4 space-y-4">
+            <div className="p-4">
               <label className="block border border-dashed border-[#94A3B8] dark:border-[#475569] rounded-md p-4 text-center cursor-pointer hover:bg-[#F8FAFC] dark:hover:bg-[#1E293B] transition-colors">
                 <input
                   type="file"
@@ -174,10 +173,10 @@ export const TriageWorkspace: React.FC = () => {
                   <img
                     src={imagePreview}
                     alt="Pré-visualização intraoral"
-                    className="max-h-56 mx-auto rounded border border-[#CBD5E1]"
+                    className="max-h-72 mx-auto rounded border border-[#CBD5E1]"
                   />
                 ) : (
-                  <div className="py-8 space-y-2 text-[#475569] dark:text-[#94A3B8]">
+                  <div className="py-12 space-y-2 text-[#475569] dark:text-[#94A3B8]">
                     <ImagePlus className="w-8 h-8 mx-auto text-[#1E3A8A] dark:text-[#60A5FA]" />
                     <div className="text-xs font-semibold">
                       Clique para selecionar foto intraoral (.jpg / .png)
@@ -185,33 +184,6 @@ export const TriageWorkspace: React.FC = () => {
                   </div>
                 )}
               </label>
-
-              {/* Sensitivity Threshold Slider */}
-              <div className="p-3 bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#CBD5E1] dark:border-[#334155] rounded-md space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-[#1E3A8A] dark:text-[#60A5FA]" />
-                    Limiar de Sensibilidade (Threshold CNN)
-                  </span>
-                  <span className="font-mono font-bold text-[#1E3A8A] dark:text-[#93C5FD]">
-                    {(threshold * 100).toFixed(0)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={0.1}
-                  max={0.9}
-                  step={0.05}
-                  value={threshold}
-                  onChange={(e) => setThreshold(Number(e.target.value))}
-                  className="w-full accent-[#1E3A8A]"
-                />
-                <div className="flex justify-between text-[10px] text-[#64748B] dark:text-[#94A3B8]">
-                  <span>0.10 (Alta Sensibilidade)</span>
-                  <span>0.50 (Padrão)</span>
-                  <span>0.90 (Alta Especificidade)</span>
-                </div>
-              </div>
             </div>
           </Card>
         </div>
@@ -304,14 +276,20 @@ export const TriageWorkspace: React.FC = () => {
             {/* Guardrail Comparative Alert Banner */}
             <div
               className={`p-4 rounded-md border flex items-start gap-3 ${
-                result.guardrail.concordance_status === "DISCORDANCIA_FALSO_POSITIVO"
+                result.guardrail.concordance_status === "DISCORDANCIA_FALSO_POSITIVO" ||
+                result.guardrail.final_risk === "MODERADO"
                   ? "bg-[#FFFBEB] dark:bg-[#451A03] border-[#FCD34D] dark:border-[#D97706] text-[#92400E] dark:text-[#FDE68A]"
-                  : result.guardrail.guardrail_triggered
+                  : result.guardrail.guardrail_triggered ||
+                    result.guardrail.final_risk === "CRÍTICO" ||
+                    result.guardrail.final_risk === "ALTO"
                   ? "bg-[#FEF2F2] dark:bg-[#450A0A] border-[#FCA5A5] dark:border-[#DC2626] text-[#991B1B] dark:text-[#FECACA]"
                   : "bg-[#ECFDF5] dark:bg-[#064E3B] border-[#6EE7B7] dark:border-[#059669] text-[#065F46] dark:text-[#A7F3D0]"
               }`}
             >
-              {result.guardrail.guardrail_triggered ? (
+              {result.guardrail.guardrail_triggered ||
+              result.guardrail.final_risk === "CRÍTICO" ||
+              result.guardrail.final_risk === "ALTO" ||
+              result.guardrail.final_risk === "MODERADO" ? (
                 <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
               ) : (
                 <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" />

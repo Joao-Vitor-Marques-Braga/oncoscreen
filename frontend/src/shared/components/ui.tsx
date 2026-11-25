@@ -61,13 +61,13 @@ export const RiskBadge: React.FC<{ risk: string }> = ({ risk }) => {
   let style =
     "bg-[#ECFDF5] text-[#065F46] border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#A7F3D0] dark:border-[#059669]";
 
-  if (upper === "CRÍTICO" || upper === "CRITICAL") {
+  if (upper.includes("CRÍTICO") || upper.includes("CRITICAL")) {
     style =
       "bg-[#FEF2F2] text-[#991B1B] border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FECACA] dark:border-[#DC2626]";
-  } else if (upper === "ALTO" || upper === "HIGH") {
+  } else if (upper.includes("ALTO") || upper.includes("HIGH")) {
     style =
       "bg-[#FEF2F2] text-[#B91C1C] border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FECACA] dark:border-[#DC2626]";
-  } else if (upper === "MODERADO" || upper === "MODERATE") {
+  } else if (upper.includes("MODERADO") || upper.includes("MODERATE")) {
     style =
       "bg-[#FFFBEB] text-[#92400E] border-[#FCD34D] dark:bg-[#78350F] dark:text-[#FDE68A] dark:border-[#D97706]";
   }

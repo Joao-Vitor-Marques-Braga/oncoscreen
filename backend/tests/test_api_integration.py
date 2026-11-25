@@ -176,3 +176,16 @@ def test_sanitize_report_text_strips_markdown_fences_and_hashes() -> None:
     assert "1. Síntese Clínica" in cleaned
     assert "- Item quebrado" in cleaned
 
+
+def test_sanitize_report_text_replaces_surgery_with_biopsy() -> None:
+    from app.infrastructure.llm.ollama_slm_client import sanitize_report_text
+
+    raw = (
+        "4. Conduta Recomendada\n"
+        "Recomenda-se encaminhamento para Cirurgia de Cabeça e Pescoço para avaliação cirúrgica emergencial."
+    )
+    cleaned = sanitize_report_text(raw)
+    assert "cirurg" not in cleaned.lower()
+    assert "biópsia" in cleaned.lower()
+    assert "Estomatologia" in cleaned
+

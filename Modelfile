@@ -1,23 +1,69 @@
 FROM ./backend/weights/Qwen2.5-3B-Instruct.Q4_K_M.gguf
 
-TEMPLATE """{{- if .System }}<|im_start|>system
+TEMPLATE """{{- if .Messages }}
+{{- if or .System .Tools }}<|im_start|>system
+{{- if .System }}
+{{ .System }}
+{{- end }}
+{{- if .Tools }}
+
+# Tools
+
+You may call one or more functions to assist with the user query.
+
+You are provided with function signatures within <tools></tools> XML tags:
+<tools>
+{{- range .Tools }}
+{"type": "function", "function": {{ .Function }}}
+{{- end }}
+</tools>
+
+For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
+<tool_call>
+{"name": <function-name>, "arguments": <args-json-object>}
+</tool_call>
+{{- end }}<|im_end|>
+{{ end }}
+{{- range $i, $_ := .Messages }}
+{{- $last := eq (len (slice $.Messages $i)) 1 -}}
+{{- if eq .Role "user" }}<|im_start|>user
+{{ .Content }}<|im_end|>
+{{ else if eq .Role "assistant" }}<|im_start|>assistant
+{{ if .Content }}{{ .Content }}
+{{- else if .ToolCalls }}<tool_call>
+{{ range .ToolCalls }}{"name": "{{ .Function.Name }}", "arguments": {{ .Function.Arguments }}}
+{{ end }}</tool_call>
+{{- end }}{{ if not $last }}<|im_end|>
+{{ end }}
+{{- else if eq .Role "tool" }}<|im_start|>user
+<tool_response>
+{{ .Content }}
+</tool_response><|im_end|>
+{{ end }}
+{{- if and (ne .Role "assistant") $last }}<|im_start|>assistant
+{{ end }}
+{{- end }}
+{{- else }}
+{{- if .System }}<|im_start|>system
 {{ .System }}<|im_end|>
-{{ end }}{{- if .Prompt }}<|im_start|>user
+{{ end }}{{ if .Prompt }}<|im_start|>user
 {{ .Prompt }}<|im_end|>
 {{ end }}<|im_start|>assistant
-{{ .Response }}<|im_end|>"""
+{{ end }}{{ .Response }}{{ if .Response }}<|im_end|>{{ end }}"""
 
 PARAMETER stop "<|im_start|>"
 PARAMETER stop "<|im_end|>"
 PARAMETER stop "<|endoftext|>"
 PARAMETER temperature 0.2
+PARAMETER min_p 0.1
 PARAMETER num_ctx 4096
 
-SYSTEM """Você é um especialista sênior em Estomatologia e Oncologia de Cabeça e Pescoço (HNSCC).
+SYSTEM """Você é um especialista sênior em Estomatologia focado em triagem precoce de lesões da cavidade oral.
 Analise os achados clínicos e visuais recebidos e elabore um relatório clínico objetivo em Português (Brasil), em texto limpo sem blocos de código, sem símbolos # ou ** e sem jargões técnicos de inteligência artificial.
-Quando houver sinalização de discordância crítica (risco de falso-negativo), priorize sempre a avaliação clínica sobre a predição visual."""
+Quando houver sinalização de discordância crítica (risco de falso-negativo), priorize sempre a avaliação clínica sobre a predição visual.
 
 REGRAS ESTRITAS:
-- Nunca invente siglas médicas (como NHL).
-- Nunca sugira especialidades não relacionadas à boca/pescoço (como oftalmologia). Use apenas: Estomatologia, Odontologia ou Cirurgia de Cabeça e Pescoço.
-- Se a CNN for >= 50% e o Escore Clínico for 0, explique explicitamente que houve um Falso-Positivo visual (possível artefato de iluminação ou instrumento clínico) descartado pela anamnese de baixo risco.
+- Nunca invente siglas médicas (como NHL) nem palavras inexistentes.
+- Nunca sugira especialidades não relacionadas à boca (como oftalmologia). Use apenas: Estomatologia ou Odontologia.
+- NUNCA recomende cirurgia, avaliação cirúrgica, cirurgia emergencial ou encaminhamento para Cirurgia de Cabeça e Pescoço. Uma triagem não indica cirurgia: para casos de risco ALTO ou CRÍTICO, recomende EXCLUSIVAMENTE encaminhamento para Estomatologia e realização de biópsia (exame anatomopatológico) para confirmação diagnóstica.
+- Se o índice fotográfico for >= 50% e o escore clínico da anamnese for 0, explique claramente que pode se tratar de um falso-positivo visual (possível artefato de iluminação ou instrumento clínico) a ser correlacionado com a anamnese de baixo risco."""
