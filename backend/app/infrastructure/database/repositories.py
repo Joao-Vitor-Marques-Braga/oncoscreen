@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import List, Optional
 
-from sqlalchemy import desc, select, update
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities.anamnesis import Anamnesis
@@ -136,7 +136,6 @@ class SQLAlchemyExamRepository(ExamRepository):
             original_image_path=exam.original_image_path,
             gradcam_heatmap_path=exam.gradcam_heatmap_path,
             gradcam_overlay_path=exam.gradcam_overlay_path,
-            whatsapp_dispatched=exam.whatsapp_dispatched,
             created_at=exam.created_at,
         )
         self._session.add(model)
@@ -161,11 +160,6 @@ class SQLAlchemyExamRepository(ExamRepository):
         stmt = select(ExamModel).order_by(desc(ExamModel.created_at)).limit(limit)
         rows = (await self._session.execute(stmt)).scalars().all()
         return [self._to_entity(r) for r in rows]
-
-    async def mark_whatsapp_dispatched(self, exam_id: str) -> None:
-        stmt = update(ExamModel).where(ExamModel.id == exam_id).values(whatsapp_dispatched=True)
-        await self._session.execute(stmt)
-        await self._session.commit()
 
     @staticmethod
     def _to_entity(row: ExamModel) -> Exam:
@@ -199,7 +193,6 @@ class SQLAlchemyExamRepository(ExamRepository):
             original_image_path=row.original_image_path,
             gradcam_heatmap_path=row.gradcam_heatmap_path,
             gradcam_overlay_path=row.gradcam_overlay_path,
-            whatsapp_dispatched=row.whatsapp_dispatched,
             created_at=row.created_at,
         )
 

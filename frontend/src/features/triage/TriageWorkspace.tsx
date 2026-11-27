@@ -7,7 +7,6 @@ import {
   Download,
   FileText,
   ImagePlus,
-  MessageSquareShare,
   Play,
 } from "lucide-react";
 import { apiClient } from "@/shared/api/client";
@@ -25,10 +24,7 @@ import {
   type AnamnesisFormValues,
 } from "@/features/triage/anamnesisSchema";
 import { GradCAMViewer } from "@/features/triage/GradCAMViewer";
-import {
-  buildClinicalPdfBase64,
-  downloadClinicalPdf,
-} from "@/shared/utils/generateClinicalPdf";
+import { downloadClinicalPdf } from "@/shared/utils/generateClinicalPdf";
 import type { PatientSummary, SystemStatus, TriageResult } from "@/shared/types/clinical";
 
 export const TriageWorkspace: React.FC = () => {
@@ -39,8 +35,6 @@ export const TriageWorkspace: React.FC = () => {
   const [result, setResult] = useState<TriageResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [whatsappFeedback, setWhatsappFeedback] = useState<string | null>(null);
-  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
 
   useEffect(() => {
     apiClient
@@ -75,7 +69,6 @@ export const TriageWorkspace: React.FC = () => {
 
   const onExecuteTriage = async (anamnesisValues: AnamnesisFormValues) => {
     setErrorMsg(null);
-    setWhatsappFeedback(null);
     if (!selectedPatient) {
       setErrorMsg("Selecione ou cadastre um paciente pelo CPF antes de executar a triagem.");
       return;
@@ -126,24 +119,6 @@ export const TriageWorkspace: React.FC = () => {
   const handleDownloadPDF = () => {
     if (!result) return;
     downloadClinicalPdf(buildPdfPayload(result));
-  };
-
-  const handleDispatchWhatsApp = async () => {
-    if (!result) return;
-    setSendingWhatsApp(true);
-    setWhatsappFeedback(null);
-    try {
-      const pdfBase64 = buildClinicalPdfBase64(buildPdfPayload(result));
-      const resp = await apiClient.post<{ sent: boolean; message: string }>(
-        `/exams/${result.exam_id}/whatsapp`,
-        { pdf_base64: pdfBase64 }
-      );
-      setWhatsappFeedback(resp.data.message);
-    } catch {
-      setWhatsappFeedback("Erro ao tentar enviar via WhatsApp.");
-    } finally {
-      setSendingWhatsApp(false);
-    }
   };
 
   return (
@@ -331,22 +306,7 @@ export const TriageWorkspace: React.FC = () => {
                     <Download className="w-4 h-4" />
                     Baixar Laudo PDF
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={sendingWhatsApp}
-                    onClick={handleDispatchWhatsApp}
-                  >
-                    <MessageSquareShare className="w-4 h-4" />
-                    {sendingWhatsApp ? "Enviando..." : "Enviar Laudo via WhatsApp"}
-                  </Button>
                 </div>
-
-                {whatsappFeedback && (
-                  <div className="p-2.5 text-xs bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#CBD5E1] dark:border-[#334155] rounded">
-                    {whatsappFeedback}
-                  </div>
-                )}
               </div>
             </div>
           </div>

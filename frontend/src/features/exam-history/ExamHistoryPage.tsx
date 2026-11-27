@@ -1,11 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Download,
-  Eye,
-  MessageSquareShare,
-  RefreshCw,
-} from "lucide-react";
+import { Download, Eye, RefreshCw } from "lucide-react";
 import { apiClient } from "@/shared/api/client";
 import { useAuth } from "@/shared/context/AuthContext";
 import {
@@ -16,18 +11,13 @@ import {
   RiskBadge,
 } from "@/shared/components/ui";
 import { GradCAMViewer } from "@/features/triage/GradCAMViewer";
-import {
-  buildClinicalPdfBase64,
-  downloadClinicalPdf,
-} from "@/shared/utils/generateClinicalPdf";
+import { downloadClinicalPdf } from "@/shared/utils/generateClinicalPdf";
 import type { ExamDetail, ExamListItem } from "@/shared/types/clinical";
 
 export const ExamHistoryPage: React.FC = () => {
   const { user } = useAuth();
   const isDoctor = user?.role === "DOCTOR";
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
-  const [waMessage, setWaMessage] = useState<string | null>(null);
-  const [sendingWa, setSendingWa] = useState(false);
 
   const {
     data: exams = [],
@@ -69,28 +59,6 @@ export const ExamHistoryPage: React.FC = () => {
     downloadClinicalPdf(buildDetailPdfPayload(detail));
   };
 
-  const handleSendWhatsApp = async (examId: string) => {
-    setSendingWa(true);
-    setWaMessage(null);
-    try {
-      const detail =
-        examDetail && examDetail.id === examId
-          ? examDetail
-          : (await apiClient.get<ExamDetail>(`/exams/${examId}`)).data;
-      const pdfBase64 = buildClinicalPdfBase64(buildDetailPdfPayload(detail));
-      const resp = await apiClient.post<{ sent: boolean; message: string }>(
-        `/exams/${examId}/whatsapp`,
-        { pdf_base64: pdfBase64 }
-      );
-      setWaMessage(resp.data.message);
-      refetch();
-    } catch {
-      setWaMessage("Falha ao enviar via Evolution API.");
-    } finally {
-      setSendingWa(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <Card>
@@ -98,8 +66,8 @@ export const ExamHistoryPage: React.FC = () => {
           title={isDoctor ? "Histórico Clínico de Triagens" : "Meus Exames e Laudos"}
           subtitle={
             isDoctor
-              ? "Consulte exames realizados, baixe laudos em PDF ou envie via WhatsApp."
-              : "Acesso exclusivo de leitura aos seus exames e laudos emitidos."
+              ? "Consulte exames realizados, visualize o Grad-CAM e exporte o relatório clínico em PDF."
+              : "Acesso exclusivo de leitura aos seus exames e relatórios emitidos."
           }
           right={
             <Button type="button" variant="outline" onClick={() => refetch()}>
@@ -155,10 +123,7 @@ export const ExamHistoryPage: React.FC = () => {
                         type="button"
                         variant="outline"
                         className="px-2.5 py-1 text-xs"
-                        onClick={() => {
-                          setWaMessage(null);
-                          setSelectedExamId(ex.id);
-                        }}
+                        onClick={() => setSelectedExamId(ex.id)}
                       >
                         <Eye className="w-3.5 h-3.5" />
                         Ver Laudo
@@ -238,25 +203,7 @@ export const ExamHistoryPage: React.FC = () => {
                     <Download className="w-4 h-4" />
                     Baixar Laudo PDF
                   </Button>
-
-                  {isDoctor && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={sendingWa}
-                      onClick={() => handleSendWhatsApp(examDetail.id)}
-                    >
-                      <MessageSquareShare className="w-4 h-4" />
-                      {sendingWa ? "Enviando..." : "Enviar Laudo via WhatsApp"}
-                    </Button>
-                  )}
                 </div>
-
-                {waMessage && (
-                  <div className="p-2.5 text-xs bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#CBD5E1] dark:border-[#334155] rounded">
-                    {waMessage}
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -265,4 +212,3 @@ export const ExamHistoryPage: React.FC = () => {
     </div>
   );
 };
-

@@ -70,6 +70,5 @@ class ExamModel(Base):
     gradcam_heatmap_path: Mapped[str] = mapped_column(String(255), nullable=False)
     gradcam_overlay_path: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    whatsapp_dispatched: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
 

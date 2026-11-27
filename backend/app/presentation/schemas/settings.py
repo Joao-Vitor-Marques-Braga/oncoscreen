@@ -20,7 +20,6 @@ class SystemStatusResponse(BaseModel):
     default_threshold: float
     vision: Dict[str, Any]
     ollama: Dict[str, Any]
-    whatsapp: Dict[str, Any]
 
 
 class UpdateThresholdRequest(BaseModel):

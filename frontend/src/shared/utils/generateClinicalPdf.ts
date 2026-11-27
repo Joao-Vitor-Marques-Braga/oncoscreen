@@ -399,10 +399,3 @@ export function downloadClinicalPdf(data: ClinicalPdfPayload): void {
   const doc = createClinicalPdfDoc(data);
   doc.save(`laudo_oncoscreen_${data.examId.slice(0, 8)}.pdf`);
 }
-
-export function buildClinicalPdfBase64(data: ClinicalPdfPayload): string {
-  const doc = createClinicalPdfDoc(data);
-  const dataUri = doc.output("datauristring");
-  const commaIdx = dataUri.indexOf(",");
-  return commaIdx >= 0 ? dataUri.slice(commaIdx + 1) : dataUri;
-}

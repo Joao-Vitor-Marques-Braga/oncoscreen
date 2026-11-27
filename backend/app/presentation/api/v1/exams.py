@@ -1,15 +1,12 @@
-"""Exams history, detail, and WhatsApp dispatch endpoints."""
+"""Exams history and detail endpoints."""
 
 from __future__ import annotations
 
 from dataclasses import asdict
 from typing import List, Optional
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Depends, Query
 
-from app.application.use_cases.exams.dispatch_exam_whatsapp import (
-    DispatchExamWhatsAppUseCase,
-)
 from app.application.use_cases.exams.get_exam_detail import GetExamDetailUseCase
 from app.application.use_cases.exams.list_exams import ListExamsUseCase
 from app.infrastructure.database.repositories import (
@@ -25,15 +22,12 @@ from app.presentation.dependencies.container import (
     get_exam_repo,
     get_patient_repo,
     get_user_repo,
-    require_doctor,
 )
 from app.presentation.schemas.triage import (
     AnamnesisSchema,
     ExamDetailResponse,
     ExamListItemResponse,
     GuardrailResponse,
-    WhatsAppDispatchRequest,
-    WhatsAppDispatchResponse,
 )
 
 router = APIRouter(prefix="/exams", tags=["Exames e Laudos"])
@@ -105,31 +99,5 @@ async def get_exam_detail(
         original_image_base64=dto.original_image_base64,
         gradcam_heatmap_base64=dto.gradcam_heatmap_base64,
         gradcam_overlay_base64=dto.gradcam_overlay_base64,
-        whatsapp_dispatched=dto.whatsapp_dispatched,
         created_at=dto.created_at,
-    )
-
-
-@router.post("/{exam_id}/whatsapp", response_model=WhatsAppDispatchResponse)
-async def dispatch_exam_whatsapp(
-    exam_id: str,
-    body: Optional[WhatsAppDispatchRequest] = Body(default=None),
-    _doctor: CurrentUserContext = Depends(require_doctor),
-    exam_repo: SQLAlchemyExamRepository = Depends(get_exam_repo),
-    patient_repo: SQLAlchemyPatientRepository = Depends(get_patient_repo),
-    container: AppContainer = Depends(get_container),
-) -> WhatsAppDispatchResponse:
-    use_case = DispatchExamWhatsAppUseCase(
-        exam_repo=exam_repo,
-        patient_repo=patient_repo,
-        whatsapp_client=container.whatsapp_client,
-    )
-    result = await use_case.execute(
-        exam_id=exam_id,
-        pdf_base64=body.pdf_base64 if body else None,
-    )
-    return WhatsAppDispatchResponse(
-        sent=result.sent,
-        fallback_used=result.fallback_used,
-        message=result.message,
     )

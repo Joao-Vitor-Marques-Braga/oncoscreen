@@ -13,7 +13,6 @@ from app.domain.entities.user import UserRole
 from app.domain.interfaces.documents import FileStorage
 from app.domain.interfaces.slm_engine import SLMEngine
 from app.domain.interfaces.vision_engine import VisionEngine
-from app.domain.interfaces.whatsapp_client import WhatsAppClient
 from app.domain.services.clinical_guardrails import ClinicalGuardrailsService
 from app.infrastructure.config import Settings
 from app.infrastructure.database.repositories import (
@@ -23,7 +22,6 @@ from app.infrastructure.database.repositories import (
 )
 from app.infrastructure.database.session import create_engine_and_sessionmaker
 from app.infrastructure.llm.ollama_slm_client import OllamaSLMClient
-from app.infrastructure.messaging.evolution_whatsapp_adapter import EvolutionWhatsAppAdapter
 from app.infrastructure.ml.efficientnet_vision_engine import EfficientNetVisionEngine
 from app.infrastructure.security.jwt_handler import JWTTokenProvider
 from app.infrastructure.security.password_hasher import BcryptPasswordHasher
@@ -68,11 +66,6 @@ class AppContainer:
             base_url=settings.ollama_base_url,
             model=settings.ollama_model,
             timeout_seconds=settings.ollama_timeout_seconds,
-        )
-        self.whatsapp_client: WhatsAppClient = EvolutionWhatsAppAdapter(
-            api_url=settings.evolution_api_url,
-            api_key=settings.evolution_api_key,
-            instance_name=settings.evolution_instance_name,
         )
 
 

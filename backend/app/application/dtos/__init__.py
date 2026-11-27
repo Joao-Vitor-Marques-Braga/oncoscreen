@@ -80,7 +80,6 @@ class ExamListItemDTO:
     final_risk: str
     concordance_status: str
     anatomical_quadrant: str
-    whatsapp_dispatched: bool
     created_at: datetime
 
 
@@ -105,7 +104,6 @@ class ExamDetailDTO:
     original_image_base64: str
     gradcam_heatmap_base64: str
     gradcam_overlay_base64: str
-    whatsapp_dispatched: bool
     created_at: datetime
 
 

@@ -37,11 +37,6 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen2.5:3b"
     ollama_timeout_seconds: int = 60
 
-    # Evolution API (WhatsApp)
-    evolution_api_url: str = "http://localhost:8080"
-    evolution_api_key: str = ""
-    evolution_instance_name: str = "oncoscreen"
-
     # CORS
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 

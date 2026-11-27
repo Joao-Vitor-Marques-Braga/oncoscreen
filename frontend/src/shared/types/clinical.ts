@@ -86,7 +86,6 @@ export interface ExamListItem {
   final_risk: string;
   concordance_status: string;
   anatomical_quadrant: string;
-  whatsapp_dispatched: boolean;
   created_at: string;
 }
 
@@ -110,7 +109,6 @@ export interface ExamDetail {
   original_image_base64: string;
   gradcam_heatmap_base64: string;
   gradcam_overlay_base64: string;
-  whatsapp_dispatched: boolean;
   created_at: string;
 }
 
@@ -130,6 +128,5 @@ export interface SystemStatus {
   default_threshold: number;
   vision: Record<string, unknown>;
   ollama: Record<string, unknown>;
-  whatsapp: Record<string, unknown>;
 }
 

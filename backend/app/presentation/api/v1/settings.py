@@ -22,12 +22,10 @@ async def get_system_status(
     container: AppContainer = Depends(get_container),
 ) -> SystemStatusResponse:
     ollama_health = await container.slm_engine.health_check()
-    whatsapp_health = await container.whatsapp_client.health_check()
     return SystemStatusResponse(
         default_threshold=container.default_threshold,
         vision=container.vision_engine.status(),
         ollama=ollama_health,
-        whatsapp=whatsapp_health,
     )
 
 

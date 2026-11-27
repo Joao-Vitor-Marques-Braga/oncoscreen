@@ -75,7 +75,6 @@ class GetExamDetailUseCase:
             original_image_base64=orig_b64,
             gradcam_heatmap_base64=heatmap_b64,
             gradcam_overlay_base64=overlay_b64,
-            whatsapp_dispatched=exam.whatsapp_dispatched,
             created_at=exam.created_at,
         )
 

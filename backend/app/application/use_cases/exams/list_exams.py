@@ -54,7 +54,6 @@ class ListExamsUseCase:
                     final_risk=exam.guardrail_assessment.final_risk.value,
                     concordance_status=exam.guardrail_assessment.concordance_status.value,
                     anatomical_quadrant=exam.anatomical_quadrant.value,
-                    whatsapp_dispatched=exam.whatsapp_dispatched,
                     created_at=exam.created_at,
                 )
             )

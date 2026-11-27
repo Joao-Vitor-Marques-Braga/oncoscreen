@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Cpu, MessageCircle, RefreshCw, Save, Sparkles } from "lucide-react";
+import { Cpu, RefreshCw, Save, Sparkles } from "lucide-react";
 import { apiClient } from "@/shared/api/client";
 import { Button, Card, CardHeader } from "@/shared/components/ui";
 import type { SystemStatus } from "@/shared/types/clinical";
@@ -32,14 +32,13 @@ export const ModelSettingsPage: React.FC = () => {
   }
 
   const ollamaOnline = Boolean(status.ollama?.online);
-  const waOnline = Boolean(status.whatsapp?.online);
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader
           title="Calibração Padrão do Modelo de Visão"
-          subtitle="Define o threshold inicial utilizado na tela de triagem multimodal."
+          subtitle="Define o limiar (threshold) utilizado na classificação da imagem durante a triagem multimodal."
           right={
             <Button type="button" variant="outline" onClick={() => refetch()}>
               <RefreshCw className="w-3.5 h-3.5" />
@@ -51,7 +50,7 @@ export const ModelSettingsPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1 space-y-1">
               <div className="flex justify-between text-xs font-semibold">
-                <span>Threshold Padrão (EfficientNet-B0)</span>
+                <span>Threshold Padrão da Rede de Visão</span>
                 <span className="font-mono text-[#1E3A8A] dark:text-[#93C5FD]">
                   {threshold.toFixed(2)}
                 </span>
@@ -79,13 +78,14 @@ export const ModelSettingsPage: React.FC = () => {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="p-4 space-y-2">
           <div className="flex items-center gap-2 text-xs font-bold text-[#1E3A8A] dark:text-[#93C5FD]">
             <Cpu className="w-4 h-4" />
             PyTorch Vision Engine
           </div>
           <div className="text-xs space-y-1 font-mono">
+            <div>Arquitetura: {String(status.vision.engine)}</div>
             <div>Dispositivo: {String(status.vision.device)}</div>
             <div>Threads CPU: {String(status.vision.cpu_threads ?? "GPU")}</div>
             <div>Pesos (.pth): {status.vision.weights_loaded ? "Carregados" : "Inicializado"}</div>
@@ -111,28 +111,7 @@ export const ModelSettingsPage: React.FC = () => {
             <div>URL: {String(status.ollama.base_url)}</div>
           </div>
         </Card>
-
-        <Card className="p-4 space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-[#1E3A8A] dark:text-[#93C5FD]">
-            <span className="flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" />
-              Evolution API (WhatsApp)
-            </span>
-            <span
-              className={`px-2 py-0.5 rounded text-[10px] ${
-                waOnline ? "bg-[#ECFDF5] text-[#065F46]" : "bg-[#FFFBEB] text-[#92400E]"
-              }`}
-            >
-              {waOnline ? "CONECTADA" : "OFFLINE"}
-            </span>
-          </div>
-          <div className="text-xs space-y-1 font-mono">
-            <div>Instância: {String(status.whatsapp.instance)}</div>
-            <div>Configurada: {status.whatsapp.configured ? "Sim" : "Não (.env)"}</div>
-          </div>
-        </Card>
       </div>
     </div>
   );
 };
-

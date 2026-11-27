@@ -73,7 +73,6 @@ class ExamListItemResponse(BaseModel):
     final_risk: str
     concordance_status: str
     anatomical_quadrant: str
-    whatsapp_dispatched: bool
     created_at: datetime
 
 
@@ -97,15 +96,4 @@ class ExamDetailResponse(BaseModel):
     original_image_base64: str
     gradcam_heatmap_base64: str
     gradcam_overlay_base64: str
-    whatsapp_dispatched: bool
     created_at: datetime
-
-
-class WhatsAppDispatchRequest(BaseModel):
-    pdf_base64: Optional[str] = None
-
-
-class WhatsAppDispatchResponse(BaseModel):
-    sent: bool
-    fallback_used: bool
-    message: str

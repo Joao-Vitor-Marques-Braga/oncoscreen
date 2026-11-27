@@ -68,9 +68,6 @@ class InMemoryExamRepo(ExamRepository):
     async def list_all(self, limit: int = 100) -> List[Exam]:
         return []
 
-    async def mark_whatsapp_dispatched(self, exam_id: str) -> None:
-        return None
-
 
 class DummyHasher(PasswordHasher):
     def hash(self, plain_password: str) -> str:

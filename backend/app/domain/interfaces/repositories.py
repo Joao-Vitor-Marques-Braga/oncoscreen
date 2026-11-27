@@ -65,7 +65,3 @@ class ExamRepository(ABC):
     async def list_all(self, limit: int = 100) -> List[Exam]:
         """List all exams ordered by most recent."""
 
-    @abstractmethod
-    async def mark_whatsapp_dispatched(self, exam_id: str) -> None:
-        """Mark exam as dispatched via WhatsApp."""
-
